@@ -163,6 +163,7 @@ The following properties are supported, roughly in order of popularity. Remember
 - `displayPeriodUom` - The period type to show. By default this is `month`, _i.e._, it shows a calendar in month-sized chunks. Other allowed values are `year` and `week`.
 - `displayPeriodCount` - The _number_ of periods to show within the view. For example, if `displayPeriodUom` is `week` and `displayPeriodCount` is 2, the view will show a two-week period.
 - `events` - An array of items to show on the calendar. See _Calendar Item Properties_ below for more details.
+- `showEvents` - If false, events will not show up on the calendar itself. Default is `true`. (Note: since this is a Boolean value, you should use `v-bind` on the attribute.)
 - `showEventTimes` - If true, shows the start and/or end time of an item beside the item title. Midnight is not shown, a midnight time is assumed to indicate an all-day or indeterminate time. (If you want to show midnight, use `00:00:01` and don't choose to show seconds.) The default is `false`.
 - `enableDragDrop` - If true, items are draggable, and dragging and dropping them emits events you can catch and respond to. Default is `false`. (Note: since this is a Boolean value, you should use `v-bind` on the attribute.)
 - `disablePast` - If true, prevents the user from navigating to previous periods. Default is `false`. (Note: since this is a Boolean value, you should use `v-bind` on the attribute.)
@@ -298,7 +299,7 @@ div cv-wrapper locale-X yYYYY mMM (past|future) period-X periodCount-X wrap-even
 		div cv-header-day dowX [x7]
 	div cv-weeks
 		div cv-week weekX wsYYYY-MM-DD [x # weeks in visible period]
-			div cv-day dowX dYYYY-MM-DD dMM-DD dDD wmX (past|today|future|last|outsideOfMonth|lastInstance) [x 7]
+			div cv-day dowX dYYYY-MM-DD dMM-DD dDD wmX (past|today|future|last|outsideOfMonth|lastInstance|hasEvent) [x 7]
 				div cv-day-number
 				DAYCONTENT
 			EVENT
@@ -396,6 +397,10 @@ This class is added to days after the current date (local time).
 #### last
 
 This class is added to the last day of the its month.
+
+#### hasEvent
+
+This class is added to the days that have events that fall on them.
 
 ### Calendar Item classes
 
