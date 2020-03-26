@@ -432,7 +432,7 @@ export default {
 		// ******************************
 
 		hasEvent(day) {
-			if(this.findAndSortItemsInDay(day).length > 0)
+			if(this.findAndSortItemsInDay(day).length > 0 && !(this.disablePast && this.isInPast(day)))
 				return "hasEvent"
 			else
 				return ""
