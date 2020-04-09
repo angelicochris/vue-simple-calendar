@@ -58,7 +58,8 @@
 							lastInstance: isLastInstanceOfMonth(day),
 						},
 						...((dateClasses && dateClasses[isoYearMonthDay(day)]) || null),
-						hasEvent(day)
+						hasEvent(day),
+						{selected: isoYearMonthDay(day) === selectedDay}
 					]"
 					@click="onClickDay(day, findAndSortItemsInDay(day))"
 					@drop.prevent="onDrop(day, $event)"
@@ -132,6 +133,7 @@ export default {
 	data: () => ({
 		currentDragItem: null,
 		currentHoveredItemId: undefined,
+		selectedDay: undefined,
 	}),
 
 	computed: {
@@ -320,10 +322,11 @@ export default {
 		// UI Events
 		// ******************************
 
-		onClickDay(day, items, windowEvent) {
+		onClickDay(day, items, dayIndex, windowEvent) {
 			if (this.disablePast && this.isInPast(day)) return
 			if (this.disableFuture && this.isInFuture(day)) return
 			this.$emit("click-date", day, items, windowEvent)
+			this.selectedDay = this.isoYearMonthDay(day);
 		},
 
 		onClickItem(calendarItem, windowEvent) {
