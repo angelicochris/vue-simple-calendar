@@ -23,9 +23,7 @@
 						:key="getColumnDOWClass(index)"
 						:class="getColumnDOWClass(index)"
 						class="cv-header-day"
-					>
-						{{ label }}
-					</div>
+					>{{ label }}</div>
 				</slot>
 			</template>
 		</div>
@@ -61,7 +59,7 @@
 						hasEvent(day),
 						{selected: isoYearMonthDay(day) === selectedDay}
 					]"
-					@click="onClickDay(day, findAndSortItemsInDay(day))"
+					@click="onClickDay(day, findAndSortItemsInDay(day), dayIndex, $event)"
 					@drop.prevent="onDrop(day, $event)"
 					@dragover.prevent="onDragOver(day)"
 					@dragenter.prevent="onDragEnter(day, $event)"
@@ -71,7 +69,8 @@
 					<slot :day="day" name="dayContent" />
 				</div>
 				<template v-for="e in getWeekItems(weekStart)">
-					<slot v-if="showEvents"
+					<slot
+						v-if="showEvents"
 						:event="e"
 						:weekStartDate="weekStart"
 						:top="getItemTop(e)"
@@ -101,460 +100,461 @@
 import CalendarMathMixin from "./CalendarMathMixin"
 
 export default {
-	name: "CalendarView",
+  name: "CalendarView",
 
-	mixins: [CalendarMathMixin],
+  mixins: [CalendarMathMixin],
 
-	props: {
-		showDate: { type: Date, default: undefined },
-		displayPeriodUom: { type: String, default: "month" },
-		displayPeriodCount: { type: Number, default: 1 },
-		locale: { type: String, default: undefined },
-		monthNameFormat: { type: String, default: "long" },
-		weekdayNameFormat: { type: String, default: "short" },
-		showEventTimes: { type: Boolean, default: false },
-		timeFormatOptions: { type: Object, default: () => {} },
-		disablePast: { type: Boolean, default: false },
-		disableFuture: { type: Boolean, default: false },
-		enableDragDrop: { type: Boolean, default: false },
-		startingDayOfWeek: { type: Number, default: 0 },
-		events: { type: Array, default: () => [] },
-		showEvents: { type: Boolean, default: true },
-		dateClasses: { type: Object, default: () => {} },
-		eventTop: { type: String, default: "1.4em" },
-		eventContentHeight: { type: String, default: "1.4em" },
-		eventBorderHeight: { type: String, default: "2px" },
-		periodChangedCallback: { type: Function, default: undefined },
-		currentPeriodLabel: { type: String, default: "" },
-		currentPeriodLabelIcons: { type: String, default: "⇤-⇥" },
-		doEmitItemMouseEvents: { type: Boolean, default: false },
-	},
+  props: {
+    showDate: { type: Date, default: undefined },
+    displayPeriodUom: { type: String, default: "month" },
+    displayPeriodCount: { type: Number, default: 1 },
+    locale: { type: String, default: undefined },
+    monthNameFormat: { type: String, default: "long" },
+    weekdayNameFormat: { type: String, default: "short" },
+    showEventTimes: { type: Boolean, default: false },
+    timeFormatOptions: { type: Object, default: () => { } },
+    disablePast: { type: Boolean, default: false },
+    disableFuture: { type: Boolean, default: false },
+    enableDragDrop: { type: Boolean, default: false },
+    startingDayOfWeek: { type: Number, default: 0 },
+    events: { type: Array, default: () => [] },
+    showEvents: { type: Boolean, default: true },
+    dateClasses: { type: Object, default: () => { } },
+    eventTop: { type: String, default: "1.4em" },
+    eventContentHeight: { type: String, default: "1.4em" },
+    eventBorderHeight: { type: String, default: "2px" },
+    periodChangedCallback: { type: Function, default: undefined },
+    currentPeriodLabel: { type: String, default: "" },
+    currentPeriodLabelIcons: { type: String, default: "⇤-⇥" },
+    doEmitItemMouseEvents: { type: Boolean, default: false },
+  },
 
-	data: () => ({
-		currentDragItem: null,
-		currentHoveredItemId: undefined,
-		selectedDay: undefined,
-	}),
+  data: () => ({
+    currentDragItem: null,
+    currentHoveredItemId: undefined,
+    selectedDay: undefined,
+  }),
 
-	computed: {
+  computed: {
 		/*
 		Props cannot default to computed/method returns, so create defaulted version of this
 		property and use it rather than the bare prop (Vue Issue #6013).
 		*/
-		displayLocale() {
-			return this.locale || this.getDefaultBrowserLocale()
-		},
+    displayLocale () {
+      return this.locale || this.getDefaultBrowserLocale()
+    },
 
 		/*
 		ShowDate, but defaulted to today. Needed both for periodStart below and for the
 		"outside of month" class. Any time component passed as part of showDate is discarded.
 		*/
-		defaultedShowDate() {
-			if (this.showDate) return this.dateOnly(this.showDate)
-			return this.today()
-		},
+    defaultedShowDate () {
+      if (this.showDate) return this.dateOnly(this.showDate)
+      return this.today()
+    },
 
 		/*
 		Given the showDate, defaulted to today, computes the beginning and end of the period
 		that the date falls within.
 		*/
-		periodStart() {
-			return this.beginningOfPeriod(
-				this.defaultedShowDate,
-				this.displayPeriodUom,
-				this.startingDayOfWeek
-			)
-		},
+    periodStart () {
+      return this.beginningOfPeriod(
+        this.defaultedShowDate,
+        this.displayPeriodUom,
+        this.startingDayOfWeek
+      )
+    },
 
-		periodEnd() {
-			return this.addDays(
-				this.incrementPeriod(
-					this.periodStart,
-					this.displayPeriodUom,
-					this.displayPeriodCount
-				),
-				-1
-			)
-		},
+    periodEnd () {
+      return this.addDays(
+        this.incrementPeriod(
+          this.periodStart,
+          this.displayPeriodUom,
+          this.displayPeriodCount
+        ),
+        -1
+      )
+    },
 
 		/*
 		For month and year views, the first and last dates displayed in the grid may not
 		be the same as the intended period, since the period may not start and stop evenly
 		on the starting day of the week.
 		*/
-		displayFirstDate() {
-			return this.beginningOfWeek(this.periodStart, this.startingDayOfWeek)
-		},
+    displayFirstDate () {
+      return this.beginningOfWeek(this.periodStart, this.startingDayOfWeek)
+    },
 
-		displayLastDate() {
-			return this.endOfWeek(this.periodEnd, this.startingDayOfWeek)
-		},
+    displayLastDate () {
+      return this.endOfWeek(this.periodEnd, this.startingDayOfWeek)
+    },
 
 		/*
 		Create an array of dates, where each date represents the beginning of a week that
 		should be rendered in the view for the current period.
 		*/
-		weeksOfPeriod() {
-			// Returns an array of object representing the date of the beginning of each week
-			// included in the view.
-			const numWeeks = Math.floor(
-				(this.dayDiff(this.displayFirstDate, this.displayLastDate) + 1) / 7
-			)
-			return Array(numWeeks)
-				.fill()
-				.map((_, i) => this.addDays(this.displayFirstDate, i * 7))
-		},
+    weeksOfPeriod () {
+      // Returns an array of object representing the date of the beginning of each week
+      // included in the view.
+      const numWeeks = Math.floor(
+        (this.dayDiff(this.displayFirstDate, this.displayLastDate) + 1) / 7
+      )
+      return Array(numWeeks)
+        .fill()
+        .map((_, i) => this.addDays(this.displayFirstDate, i * 7))
+    },
 
-		// Cache the names based on current locale and format settings
-		monthNames() {
-			return this.getFormattedMonthNames(
-				this.displayLocale,
-				this.monthNameFormat
-			)
-		},
-		weekdayNames() {
-			return this.getFormattedWeekdayNames(
-				this.displayLocale,
-				this.weekdayNameFormat,
-				this.startingDayOfWeek
-			)
-		},
+    // Cache the names based on current locale and format settings
+    monthNames () {
+      return this.getFormattedMonthNames(
+        this.displayLocale,
+        this.monthNameFormat
+      )
+    },
+    weekdayNames () {
+      return this.getFormattedWeekdayNames(
+        this.displayLocale,
+        this.weekdayNameFormat,
+        this.startingDayOfWeek
+      )
+    },
 
-		// Ensure all item properties have suitable default
-		fixedItems() {
-			const self = this
-			return this.events.map(e =>
-				self.normalizeEvent(
-					e,
-					self.currentHoveredItemId && e.id === self.currentHoveredItemId
-				)
-			)
-		},
+    // Ensure all item properties have suitable default
+    fixedItems () {
+      const self = this
+      return this.events.map(e =>
+        self.normalizeEvent(
+          e,
+          self.currentHoveredItemId && e.id === self.currentHoveredItemId
+        )
+      )
+    },
 
-		// Creates the HTML to render the date range for the calendar header.
-		periodLabel() {
-			return this.formattedPeriod(
-				this.periodStart,
-				this.periodEnd,
-				this.displayPeriodUom,
-				this.monthNames
-			)
-		},
-		// Period that today's date sits within
-		currentPeriodStart() {
-			return this.beginningOfPeriod(
-				this.today(),
-				this.displayPeriodUom,
-				this.startingDayOfWeek
-			)
-		},
-		currentPeriodEnd() {
-			return this.addDays(
-				this.incrementPeriod(
-					this.currentPeriodStart,
-					this.displayPeriodUom,
-					this.displayPeriodCount
-				),
-				-1
-			)
-		},
-		currentPeriodLabelFinal() {
-			const c = this.currentPeriodStart
-			const s = this.periodStart
-			if (!this.currentPeriodLabel)
-				return this.formattedPeriod(
-					c,
-					this.currentPeriodEnd,
-					this.displayPeriodUom,
-					this.monthNames
-				)
-			if (this.currentPeriodLabel === "icons")
-				return this.currentPeriodLabelIcons[Math.sign(c - s) + 1]
-			return this.currentPeriodLabel
-		},
-		headerProps() {
-			return {
-				// Dates for UI navigation
-				previousYear: this.getIncrementedPeriod(-12),
-				previousPeriod: this.getIncrementedPeriod(-1),
-				nextPeriod: this.getIncrementedPeriod(1),
-				previousFullPeriod: this.getIncrementedPeriod(-this.displayPeriodCount),
-				nextFullPeriod: this.getIncrementedPeriod(this.displayPeriodCount),
-				nextYear: this.getIncrementedPeriod(12),
-				currentPeriod: this.currentPeriodStart,
-				currentPeriodLabel: this.currentPeriodLabelFinal,
-				// Dates for header display
-				periodStart: this.periodStart,
-				periodEnd: this.periodEnd,
-				// Extra information that could be useful to a custom header
-				displayLocale: this.displayLocale,
-				displayFirstDate: this.displayFirstDate,
-				displayLastDate: this.displayLastDate,
-				monthNames: this.monthNames,
-				fixedEvents: this.fixedItems,
-				periodLabel: this.periodLabel,
-			}
-		},
-		periodRange() {
-			return {
-				periodStart: this.periodStart,
-				periodEnd: this.periodEnd,
-				displayFirstDate: this.displayFirstDate,
-				displayLastDate: this.displayLastDate,
-			}
-		},
-	},
+    // Creates the HTML to render the date range for the calendar header.
+    periodLabel () {
+      return this.formattedPeriod(
+        this.periodStart,
+        this.periodEnd,
+        this.displayPeriodUom,
+        this.monthNames
+      )
+    },
+    // Period that today's date sits within
+    currentPeriodStart () {
+      return this.beginningOfPeriod(
+        this.today(),
+        this.displayPeriodUom,
+        this.startingDayOfWeek
+      )
+    },
+    currentPeriodEnd () {
+      return this.addDays(
+        this.incrementPeriod(
+          this.currentPeriodStart,
+          this.displayPeriodUom,
+          this.displayPeriodCount
+        ),
+        -1
+      )
+    },
+    currentPeriodLabelFinal () {
+      const c = this.currentPeriodStart
+      const s = this.periodStart
+      if (!this.currentPeriodLabel)
+        return this.formattedPeriod(
+          c,
+          this.currentPeriodEnd,
+          this.displayPeriodUom,
+          this.monthNames
+        )
+      if (this.currentPeriodLabel === "icons")
+        return this.currentPeriodLabelIcons[Math.sign(c - s) + 1]
+      return this.currentPeriodLabel
+    },
+    headerProps () {
+      return {
+        // Dates for UI navigation
+        previousYear: this.getIncrementedPeriod(-12),
+        previousPeriod: this.getIncrementedPeriod(-1),
+        nextPeriod: this.getIncrementedPeriod(1),
+        previousFullPeriod: this.getIncrementedPeriod(-this.displayPeriodCount),
+        nextFullPeriod: this.getIncrementedPeriod(this.displayPeriodCount),
+        nextYear: this.getIncrementedPeriod(12),
+        currentPeriod: this.currentPeriodStart,
+        currentPeriodLabel: this.currentPeriodLabelFinal,
+        // Dates for header display
+        periodStart: this.periodStart,
+        periodEnd: this.periodEnd,
+        // Extra information that could be useful to a custom header
+        displayLocale: this.displayLocale,
+        displayFirstDate: this.displayFirstDate,
+        displayLastDate: this.displayLastDate,
+        monthNames: this.monthNames,
+        fixedEvents: this.fixedItems,
+        periodLabel: this.periodLabel,
+      }
+    },
+    periodRange () {
+      return {
+        periodStart: this.periodStart,
+        periodEnd: this.periodEnd,
+        displayFirstDate: this.displayFirstDate,
+        displayLastDate: this.displayLastDate,
+      }
+    },
+  },
 
-	watch: {
-		periodRange: {
-			immediate: true,
-			handler(newVal) {
-				if (this.periodChangedCallback) {
-					this.$emit("period-changed")
-					this.periodChangedCallback(newVal, "watch")
-				}
-			},
-		},
-	},
+  watch: {
+    periodRange: {
+      immediate: true,
+      handler (newVal) {
+        if (this.periodChangedCallback) {
+          this.$emit("period-changed")
+          this.periodChangedCallback(newVal, "watch")
+        }
+      },
+    },
+  },
 
-	methods: {
-		// ******************************
-		// UI Events
-		// ******************************
+  methods: {
+    // ******************************
+    // UI Events
+    // ******************************
 
-		onClickDay(day, items, dayIndex, windowEvent) {
-			if (this.disablePast && this.isInPast(day)) return
-			if (this.disableFuture && this.isInFuture(day)) return
-			this.$emit("click-date", day, items, windowEvent)
-			this.selectedDay = this.isoYearMonthDay(day);
-		},
+    onClickDay (day, items, dayIndex, windowEvent) {
+      if (!windowEvent.target.parentNode.classList.contains("hasEvent")) return
+      if (this.disablePast && this.isInPast(day)) return
+      if (this.disableFuture && this.isInFuture(day)) return
+      this.$emit("click-date", day, items, windowEvent)
+      this.selectedDay = this.isoYearMonthDay(day)
+    },
 
-		onClickItem(calendarItem, windowEvent) {
-			this.$emit("click-event", calendarItem, windowEvent)
-		},
+    onClickItem (calendarItem, windowEvent) {
+      this.$emit("click-event", calendarItem, windowEvent)
+    },
 
 		/*
 		The day name header needs to know the dow for class assignment, and this value should
 		not change based on startingDayOfWeek (i.e., Sunday is always 0). This function
 		computes the dow for a given day index.
 		*/
-		getColumnDOWClass(dayIndex) {
-			return "dow" + ((dayIndex + this.startingDayOfWeek) % 7)
-		},
+    getColumnDOWClass (dayIndex) {
+      return "dow" + ((dayIndex + this.startingDayOfWeek) % 7)
+    },
 
-		// ******************************
-		// Date Periods
-		// ******************************
+    // ******************************
+    // Date Periods
+    // ******************************
 
 		/*
 		Returns a date for the current display date moved forward or backward by a given
 		number of the current display units. Returns null if said move would result in a
 		disallowed display period.
 		*/
-		getIncrementedPeriod(count) {
-			const newStartDate = this.incrementPeriod(
-				this.periodStart,
-				this.displayPeriodUom,
-				count
-			)
-			const newEndDate = this.incrementPeriod(
-				newStartDate,
-				this.displayPeriodUom,
-				this.displayPeriodCount
-			)
-			if (this.disablePast && newEndDate <= this.today()) return null
-			if (this.disableFuture && newStartDate > this.today()) return null
-			return newStartDate
-		},
+    getIncrementedPeriod (count) {
+      const newStartDate = this.incrementPeriod(
+        this.periodStart,
+        this.displayPeriodUom,
+        count
+      )
+      const newEndDate = this.incrementPeriod(
+        newStartDate,
+        this.displayPeriodUom,
+        this.displayPeriodCount
+      )
+      if (this.disablePast && newEndDate <= this.today()) return null
+      if (this.disableFuture && newStartDate > this.today()) return null
+      return newStartDate
+    },
 
-		// ******************************
-		// Hover items (#95, #136)
-		// ******************************
-		onMouseEnterItem(calendarItem, windowEvent) {
-			this.currentHoveredItemId = calendarItem.id
-			if (this.doEmitItemMouseEvents) {
-				this.$emit("item-mouseenter", calendarItem, windowEvent)
-			}
-		},
-		onMouseLeaveItem(calendarItem, windowEvent) {
-			this.currentHoveredItemId = undefined
-			if (this.doEmitItemMouseEvents) {
-				this.$emit("item-mouseleave", calendarItem, windowEvent)
-			}
-		},
+    // ******************************
+    // Hover items (#95, #136)
+    // ******************************
+    onMouseEnterItem (calendarItem, windowEvent) {
+      this.currentHoveredItemId = calendarItem.id
+      if (this.doEmitItemMouseEvents) {
+        this.$emit("item-mouseenter", calendarItem, windowEvent)
+      }
+    },
+    onMouseLeaveItem (calendarItem, windowEvent) {
+      this.currentHoveredItemId = undefined
+      if (this.doEmitItemMouseEvents) {
+        this.$emit("item-mouseleave", calendarItem, windowEvent)
+      }
+    },
 
-		// ******************************
-		// Drag and drop items
-		// ******************************
+    // ******************************
+    // Drag and drop items
+    // ******************************
 
-		onDragStart(calendarItem, windowEvent) {
-			if (!this.enableDragDrop) return false
-			// Not using dataTransfer.setData to store the item ID because it (a) doesn't allow access to the data being
-			// dragged during dragover, dragenter, and dragleave events, and because storing an ID requires an unnecessary
-			// lookup. This does limit the drop zones to areas within this instance of this component.
-			this.currentDragItem = calendarItem
-			// Firefox and possibly other browsers require dataTransfer to be set, even if the value is not used. IE11
-			// requires that the first argument be exactly "text" (not "text/plain", etc.).
-			windowEvent.dataTransfer.setData("text", "foo")
-			this.$emit("drag-start", calendarItem)
-			return true
-		},
+    onDragStart (calendarItem, windowEvent) {
+      if (!this.enableDragDrop) return false
+      // Not using dataTransfer.setData to store the item ID because it (a) doesn't allow access to the data being
+      // dragged during dragover, dragenter, and dragleave events, and because storing an ID requires an unnecessary
+      // lookup. This does limit the drop zones to areas within this instance of this component.
+      this.currentDragItem = calendarItem
+      // Firefox and possibly other browsers require dataTransfer to be set, even if the value is not used. IE11
+      // requires that the first argument be exactly "text" (not "text/plain", etc.).
+      windowEvent.dataTransfer.setData("text", "foo")
+      this.$emit("drag-start", calendarItem)
+      return true
+    },
 
-		handleDragEvent(bubbleEventName, bubbleParam) {
-			if (!this.enableDragDrop) return false
-			if (!this.currentDragItem) {
-				// shouldn't happen
-				// If current drag item is not set, check if user has set its own slot for items
-				if (!this.$scopedSlots["event"]) return false
-			}
-			this.$emit(bubbleEventName, this.currentDragItem, bubbleParam)
-			return true
-		},
+    handleDragEvent (bubbleEventName, bubbleParam) {
+      if (!this.enableDragDrop) return false
+      if (!this.currentDragItem) {
+        // shouldn't happen
+        // If current drag item is not set, check if user has set its own slot for items
+        if (!this.$scopedSlots["event"]) return false
+      }
+      this.$emit(bubbleEventName, this.currentDragItem, bubbleParam)
+      return true
+    },
 
-		onDragOver(day) {
-			this.handleDragEvent("drag-over-date", day)
-		},
+    onDragOver (day) {
+      this.handleDragEvent("drag-over-date", day)
+    },
 
-		onDragEnter(day, windowEvent) {
-			if (!this.handleDragEvent("drag-enter-date", day)) return
-			windowEvent.target.classList.add("draghover")
-		},
+    onDragEnter (day, windowEvent) {
+      if (!this.handleDragEvent("drag-enter-date", day)) return
+      windowEvent.target.classList.add("draghover")
+    },
 
-		onDragLeave(day, windowEvent) {
-			if (!this.handleDragEvent("drag-leave-date", day)) return
-			windowEvent.target.classList.remove("draghover")
-		},
+    onDragLeave (day, windowEvent) {
+      if (!this.handleDragEvent("drag-leave-date", day)) return
+      windowEvent.target.classList.remove("draghover")
+    },
 
-		onDrop(day, windowEvent) {
-			if (!this.handleDragEvent("drop-on-date", day)) return
-			windowEvent.target.classList.remove("draghover")
-		},
+    onDrop (day, windowEvent) {
+      if (!this.handleDragEvent("drop-on-date", day)) return
+      windowEvent.target.classList.remove("draghover")
+    },
 
-		// ******************************
-		// Calendar Items
-		// ******************************
+    // ******************************
+    // Calendar Items
+    // ******************************
 
-		hasEvent(day) {
-			if(this.findAndSortItemsInDay(day).length > 0 && !(this.disablePast && this.isInPast(day)))
-				return "hasEvent"
-			else
-				return ""
-		},
+    hasEvent (day) {
+      if (this.findAndSortItemsInDay(day).length > 0 && !(this.disablePast && this.isInPast(day)))
+        return "hasEvent"
+      else
+        return ""
+    },
 
-		sortItemCallback(a, b) {
-			if (a.startDate < b.startDate) return -1
-			if (b.startDate < a.startDate) return 1
-			if (a.endDate > b.endDate) return -1
-			if (b.endDate > a.endDate) return 1
-			return a.id < b.id ? -1 : 1
-		},
+    sortItemCallback (a, b) {
+      if (a.startDate < b.startDate) return -1
+      if (b.startDate < a.startDate) return 1
+      if (a.endDate > b.endDate) return -1
+      if (b.endDate > a.endDate) return 1
+      return a.id < b.id ? -1 : 1
+    },
 
-		findAndSortItemsInWeek(weekStart) {
-			// Return a list of items that INCLUDE any day of a week starting on a
-			// particular day. Sorted so the items that start earlier are always
-			// shown first.
-			const items = this.fixedItems
-				.filter(
-					item =>
-						item.startDate < this.addDays(weekStart, 7) &&
-						item.endDate >= weekStart,
-					this
-				)
-				.sort(this.sortItemCallback)
-			return items
-		},
+    findAndSortItemsInWeek (weekStart) {
+      // Return a list of items that INCLUDE any day of a week starting on a
+      // particular day. Sorted so the items that start earlier are always
+      // shown first.
+      const items = this.fixedItems
+        .filter(
+          item =>
+            item.startDate < this.addDays(weekStart, 7) &&
+            item.endDate >= weekStart,
+          this
+        )
+        .sort(this.sortItemCallback)
+      return items
+    },
 
-		findAndSortItemsInDay(day) {
-			const items = this.fixedItems
-				.filter(
-					item =>
-						this.isSameDate(item.startDate, day),
-					this
-				)
-				.sort(this.sortItemCallback)
-			return items
-		},
+    findAndSortItemsInDay (day) {
+      const items = this.fixedItems
+        .filter(
+          item =>
+            this.isSameDate(item.startDate, day),
+          this
+        )
+        .sort(this.sortItemCallback)
+      return items
+    },
 
-		getWeekItems(weekStart) {
-			// Return a list of items that CONTAIN the week starting on a day.
-			// Sorted so the items that start earlier are always shown first.
-			const items = this.findAndSortItemsInWeek(weekStart)
-			const results = []
-			const itemRows = [[], [], [], [], [], [], []]
-			for (let i = 0; i < items.length; i++) {
-				const ep = Object.assign({}, items[i], {
-					classes: [...items[i].classes],
-					eventRow: 0,
-				})
-				const continued = ep.startDate < weekStart
-				const startOffset = continued
-					? 0
-					: this.dayDiff(weekStart, ep.startDate)
-				const span = Math.min(
-					7 - startOffset,
-					this.dayDiff(this.addDays(weekStart, startOffset), ep.endDate) + 1
-				)
-				if (continued) ep.classes.push("continued")
-				if (this.dayDiff(weekStart, ep.endDate) > 6)
-					ep.classes.push("toBeContinued")
-				if (this.isInPast(ep.endDate)) ep.classes.push("past")
-				if (ep.originalEvent.url) ep.classes.push("hasUrl")
-				for (let d = 0; d < 7; d++) {
-					if (d === startOffset) {
-						let s = 0
-						while (itemRows[d][s]) s++
-						ep.eventRow = s
-						itemRows[d][s] = true
-					} else if (d < startOffset + span) {
-						itemRows[d][ep.eventRow] = true
-					}
-				}
-				ep.classes.push(`offset${startOffset}`)
-				ep.classes.push(`span${span}`)
-				results.push(ep)
-			}
-			return results
-		},
+    getWeekItems (weekStart) {
+      // Return a list of items that CONTAIN the week starting on a day.
+      // Sorted so the items that start earlier are always shown first.
+      const items = this.findAndSortItemsInWeek(weekStart)
+      const results = []
+      const itemRows = [[], [], [], [], [], [], []]
+      for (let i = 0; i < items.length; i++) {
+        const ep = Object.assign({}, items[i], {
+          classes: [...items[i].classes],
+          eventRow: 0,
+        })
+        const continued = ep.startDate < weekStart
+        const startOffset = continued
+          ? 0
+          : this.dayDiff(weekStart, ep.startDate)
+        const span = Math.min(
+          7 - startOffset,
+          this.dayDiff(this.addDays(weekStart, startOffset), ep.endDate) + 1
+        )
+        if (continued) ep.classes.push("continued")
+        if (this.dayDiff(weekStart, ep.endDate) > 6)
+          ep.classes.push("toBeContinued")
+        if (this.isInPast(ep.endDate)) ep.classes.push("past")
+        if (ep.originalEvent.url) ep.classes.push("hasUrl")
+        for (let d = 0; d < 7; d++) {
+          if (d === startOffset) {
+            let s = 0
+            while (itemRows[d][s]) s++
+            ep.eventRow = s
+            itemRows[d][s] = true
+          } else if (d < startOffset + span) {
+            itemRows[d][ep.eventRow] = true
+          }
+        }
+        ep.classes.push(`offset${startOffset}`)
+        ep.classes.push(`span${span}`)
+        results.push(ep)
+      }
+      return results
+    },
 
 		/*
 		Creates the HTML to prefix the item title showing the item's start and/or
 		end time. Midnight is not displayed.
 		*/
-		getFormattedTimeRange(e) {
-			const startTime = this.formattedTime(
-				e.startDate,
-				this.displayLocale,
-				this.timeFormatOptions
-			)
-			let endTime = ""
-			if (!this.isSameDateTime(e.startDate, e.endDate)) {
-				endTime = this.formattedTime(
-					e.endDate,
-					this.displayLocale,
-					this.timeFormatOptions
-				)
-			}
-			return (
-				(startTime !== ""
-					? `<span class="startTime">${startTime}</span>`
-					: "") +
-				(endTime !== "" ? `<span class="endTime">${endTime}</span>` : "")
-			)
-		},
+    getFormattedTimeRange (e) {
+      const startTime = this.formattedTime(
+        e.startDate,
+        this.displayLocale,
+        this.timeFormatOptions
+      )
+      let endTime = ""
+      if (!this.isSameDateTime(e.startDate, e.endDate)) {
+        endTime = this.formattedTime(
+          e.endDate,
+          this.displayLocale,
+          this.timeFormatOptions
+        )
+      }
+      return (
+        (startTime !== ""
+          ? `<span class="startTime">${startTime}</span>`
+          : "") +
+        (endTime !== "" ? `<span class="endTime">${endTime}</span>` : "")
+      )
+    },
 
-		getItemTitle(e) {
-			if (!this.showEventTimes) return e.title
-			return this.getFormattedTimeRange(e) + " " + e.title
-		},
+    getItemTitle (e) {
+      if (!this.showEventTimes) return e.title
+      return this.getFormattedTimeRange(e) + " " + e.title
+    },
 
-		getItemTop(e) {
-			// Compute the top position of the item based on its assigned row within the given week.
-			const r = e.eventRow
-			const h = this.eventContentHeight
-			const b = this.eventBorderHeight
-			return `calc(${this.eventTop} + ${r}*${h} + ${r}*${b})`
-		},
-	},
+    getItemTop (e) {
+      // Compute the top position of the item based on its assigned row within the given week.
+      const r = e.eventRow
+      const h = this.eventContentHeight
+      const b = this.eventBorderHeight
+      return `calc(${this.eventTop} + ${r}*${h} + ${r}*${b})`
+    },
+  },
 }
 </script>
 <!--
