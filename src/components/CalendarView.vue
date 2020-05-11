@@ -322,7 +322,7 @@ export default {
     // ******************************
 
     onClickDay (day, items, dayIndex, windowEvent) {
-      if (!windowEvent.target.parentNode.classList.contains("hasEvent")) return
+      if (!windowEvent.target.classList.contains("hasEvent") && !windowEvent.target.parentNode.classList.contains("hasEvent")) return
       if (this.disablePast && this.isInPast(day)) return
       if (this.disableFuture && this.isInFuture(day)) return
       this.$emit("click-date", day, items, windowEvent)
